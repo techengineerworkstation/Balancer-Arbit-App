@@ -1,0 +1,156 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_VERSION: "stable"
+
+jobs:
+  build-server:
+    name: Build Server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build server
+        run: cargo build --release
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-linux-amd64
+          path: target/release/balancer-arb-server
+
+  build-web:
+    name: Build Web App
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Web app is pre-built static HTML/JS
+        run: ls -la web-app/dist/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-app
+          path: web-app/dist
+
+  build-desktop:
+    name: Build Desktop (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli
+      - name: Build Tauri app
+        run: cargo tauri build
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            target/release/bundle/**/*.dmg
+            target/release/bundle/**/*.msi
+            target/release/bundle/**/*.deb
+            target/release/bundle/**/*.AppImage
+
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24"
+          channel: stable
+      - name: Install dependencies
+        run: cd mobile-app && flutter pub get
+      - name: Build APK
+        run: cd mobile-app && flutter build apk --release
+      - name: Build App Bundle
+        run: cd mobile-app && flutter build appbundle --release
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: |
+            mobile-app/build/app/outputs/flutter-apk/*.apk
+            mobile-app/build/app/outputs/bundle/release/*.aab
+
+  build-ios:
+    name: Build iOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24"
+          channel: stable
+      - name: Install dependencies
+        run: cd mobile-app && flutter pub get
+      - name: Build iOS
+        run: cd mobile-app && flutter build ios --release --no-codesign
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: mobile-app/build/ios/iphoneos/*.app
+
+  docker:
+    name: Build Docker
+    runs-on: ubuntu-latest
+    needs: [build-server, build-web]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download server
+        uses: actions/download-artifact@v4
+        with:
+          name: server-linux-amd64
+          path: target/release/
+      - name: Download web app
+        uses: actions/download-artifact@v4
+        with:
+          name: web-app
+          path: web-app/dist/
+      - name: Build Docker image
+        run: docker build -t balancer-arb-bot:latest .
+      - name: Save Docker image
+        run: docker save balancer-arb-bot:latest | gzip > balancer-arb-bot.tar.gz
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker
+          path: balancer-arb-bot.tar.gz
+
+  deploy-railway:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    needs: [build-server, build-web]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Railway
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: balancer-arb-bot

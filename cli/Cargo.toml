@@ -1,0 +1,156 @@
+use clap::{Parser, Subcommand};
+use ethers::prelude::*;
+use std::time::Duration;
+use tokio::time;
+
+mod blockchain;
+mod config;
+mod scanner;
+
+use config::AppConfig;
+
+#[derive(Parser)]
+#[command(name = "balancer-arb")]
+#[command(about = "Balancer V3 Flash Loan Arbitrage Bot for Polygon")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Start {
+        #[arg(short, long)]
+        interval: Option<u64>,
+    },
+    Stop,
+    Scan,
+    Execute {
+        #[arg(short, long, default_value = "10000")]
+        amount: f64,
+    },
+    Status,
+    Balance,
+    Withdraw {
+        #[arg(short, long)]
+        token: String,
+    },
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
+    env_logger::init();
+
+    let cli = Cli::parse();
+    let config = AppConfig::load();
+
+    match cli.command {
+        Commands::Start { interval } => {
+            let scan_interval = interval.unwrap_or(config.scan_interval_ms);
+            log::info!("Starting arbitrage bot with {}ms scan interval", scan_interval);
+
+            let mut interval = time::interval(Duration::from_millis(scan_interval));
+
+            loop {
+                interval.tick().await;
+
+                let current_hour = chrono::Utc::now().hour();
+                if config.auto_trade && (current_hour < config.daily_start_hour || current_hour > config.daily_end_hour) {
+                    log::info!("Outside trading hours ({}:00 - {}:00 UTC)", config.daily_start_hour, config.daily_end_hour);
+                    continue;
+                }
+
+                match scanner::scan_opportunity(&config).await {
+                    Ok(Some(opportunity)) => {
+                        log::info!("Opportunity found: {} | Profit: ${:.4}", opportunity.token_pair, opportunity.expected_profit);
+
+                        match scanner::execute_trade(&config, &opportunity).await {
+                            Ok(result) => {
+                                log::info!("Trade executed! Profit: ${:.4} | Gas: ${:.4}", result.profit, result.gas_cost);
+                            }
+                            Err(e) => {
+                                log::error!("Trade execution failed: {}", e);
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        log::debug!("No opportunity found");
+                    }
+                    Err(e) => {
+                        log::warn!("Scan error: {}", e);
+                    }
+                }
+            }
+        }
+        Commands::Stop => {
+            log::info!("Bot stopped");
+        }
+        Commands::Scan => {
+            log::info!("Scanning for opportunities...");
+            match scanner::scan_opportunity(&config).await {
+                Ok(Some(opportunity)) => {
+                    println!("Opportunity found:");
+                    println!("  Token Pair: {}", opportunity.token_pair);
+                    println!("  DEX From: {}", opportunity.dex_from);
+                    println!("  DEX To: {}", opportunity.dex_to);
+                    println!("  Amount: ${:.2}", opportunity.amount);
+                    println!("  Expected Profit: ${:.4}", opportunity.expected_profit);
+                }
+                Ok(None) => {
+                    println!("No profitable opportunity found");
+                }
+                Err(e) => {
+                    eprintln!("Scan error: {}", e);
+                }
+            }
+        }
+        Commands::Execute { amount } => {
+            log::info!("Executing manual trade with ${:.2}...", amount);
+
+            match scanner::scan_opportunity(&config).await {
+                Ok(Some(mut opportunity)) => {
+                    opportunity.amount = amount;
+                    match scanner::execute_trade(&config, &opportunity).await {
+                        Ok(result) => {
+                            println!("Trade executed!");
+                            println!("  Profit: ${:.4}", result.profit);
+                            println!("  Gas Cost: ${:.4}", result.gas_cost);
+                        }
+                        Err(e) => {
+                            eprintln!("Trade failed: {}", e);
+                        }
+                    }
+                }
+                Ok(None) => {
+                    println!("No profitable opportunity found for ${:.2}", amount);
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                }
+            }
+        }
+        Commands::Status => {
+            let balance = blockchain::get_contract_balance(&config).await?;
+            println!("Bot Status:");
+            println!("  Network: Polygon");
+            println!("  Contract: {}", config.contract_address);
+            println!("  Contract Balance: ${:.2} USDC", balance);
+            println!("  Min Profit: ${:.2}", config.min_profit_usd);
+            println!("  Max Gas: {} Gwei", config.max_gas_price_gwei);
+            println!("  Auto-trade: {}", config.auto_trade);
+            println!("  Trading Hours: {}:00 - {}:00 UTC", config.daily_start_hour, config.daily_end_hour);
+        }
+        Commands::Balance => {
+            let balance = blockchain::get_contract_balance(&config).await?;
+            println!("Contract USDC Balance: ${:.2}", balance);
+        }
+        Commands::Withdraw { token } => {
+            log::info!("Withdrawing profits for token {}...", token);
+            blockchain::withdraw_profits(&config, &token).await?;
+            println!("Withdrawal successful!");
+        }
+    }
+
+    Ok(())
+}

@@ -1,0 +1,102 @@
+{
+  "build": {
+    "beforeDevCommand": "cd web-app && trunk serve",
+    "beforeBuildCommand": "cd web-app && trunk build --release",
+    "devPath": "http://localhost:8080",
+    "distDir": "../web-app/dist"
+  },
+  "package": {
+    "productName": "Balancer Arbitrage Bot",
+    "version": "0.4.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "http": {
+        "all": true,
+        "scope": [
+          "http://**/*",
+          "https://**/*"
+        ]
+      },
+      "fs": {
+        "all": true,
+        "scope": ["$APPDATA/**", "$APPLOCALDATA/**"]
+      }
+    },
+    "bundle": {
+      "active": true,
+      "identifier": "com.balancer-arb.bot",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "targets": "all",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "minimumSystemVersion": "10.15",
+        "providerShortName": null,
+        "signingIdentity": null,
+        "dmg": {
+          "appPosition": { "x": 180, "y": 170 },
+          "applicationFolderPosition": { "x": 480, "y": 170 },
+          "windowSize": { "width": 660, "height": 400 }
+        }
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "",
+        "nsis": {
+          "installMode": "both",
+          "headerImage": null,
+          "sidebarImage": null,
+          "installerIcon": null,
+          "displayLanguageSelector": false,
+          "languages": ["English"]
+        }
+      },
+      "linux": {
+        "deb": {
+          "depends": ["libwebkit2gtk-4.1-dev", "libgtk-3-dev", "libappindicator3-dev", "librsvg2-dev"],
+          "section": "utils"
+        },
+        "appimage": {
+          "bundleMediaFramework": true
+        },
+        "rpm": {
+          "requires": ["webkit2gtk4.1", "gtk3"]
+        }
+      }
+    },
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://* https://* ws://* wss://*; img-src 'self' asset: https://data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Balancer Arbitrage Bot",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "center": true,
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": false,
+        "visible": true
+      }
+    ],
+    "macOSPrivateApi": false
+  }
+}
