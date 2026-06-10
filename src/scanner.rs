@@ -124,6 +124,43 @@ pub fn estimate_swap_cost_usd(gas_price_gwei: f64) -> f64 {
     (gas_units * gas_price_gwei * 1e-9) * eth_price
 }
 
+fn compute_v2_pair_address(
+    factory: H160,
+    token_a: H160,
+    token_b: H160,
+    init_code_hash: &str,
+) -> H160 {
+    let (token0, token1) = if token_a < token_b {
+        (token_a, token_b)
+    } else {
+        (token_b, token_a)
+    };
+
+    let salt_input = {
+        let mut buf = [0u8; 40];
+        buf[..20].copy_from_slice(token0.as_fixed_bytes());
+        buf[20..].copy_from_slice(token1.as_fixed_bytes());
+        buf
+    };
+
+    let salt = H256::from(ethers::utils::keccak256(salt_input));
+    let init_hash = H256::from_str(init_code_hash).unwrap_or_default();
+
+    let create2_input = {
+        let mut buf = [0u8; 85];
+        buf[0] = 0xff;
+        buf[1..21].copy_from_slice(factory.as_fixed_bytes());
+        buf[21..53].copy_from_slice(salt.as_fixed_bytes());
+        buf[53..].copy_from_slice(init_hash.as_fixed_bytes());
+        buf
+    };
+
+    let hash = ethers::utils::keccak256(create2_input);
+    let mut addr_bytes = [0u8; 20];
+    addr_bytes.copy_from_slice(&hash[12..]);
+    H160::from(addr_bytes)
+}
+
 fn v2_get_amount_out(amount_in_wei: U256, reserve_in: U256, reserve_out: U256) -> U256 {
     let amount_in_with_fee = amount_in_wei * 997;
     let numerator = amount_in_with_fee * reserve_out;
@@ -139,6 +176,7 @@ async fn get_v2_swap_output(
     amount_in_human: f64,
     decimals_in: u32,
     decimals_out: u32,
+    init_code_hash: Option<&str>,
 ) -> Result<(f64, f64), String> {
     let factory_addr = H160::from_str(factory_address)
         .map_err(|e| format!("Invalid factory: {}", e))?;
@@ -147,13 +185,17 @@ async fn get_v2_swap_output(
     let token_out_addr = H160::from_str(token_out)
         .map_err(|e| format!("Invalid token_out: {}", e))?;
 
-    let factory = Contract::new(factory_addr, parse_abi(V2_FACTORY_ABI), client.provider().clone());
-    let pair: H160 = factory
-        .method("getPair", (token_in_addr, token_out_addr))
-        .map_err(|e| format!("getPair method: {}", e))?
-        .call()
-        .await
-        .map_err(|e| format!("getPair call: {}", e))?;
+    let pair = if let Some(hash) = init_code_hash {
+        compute_v2_pair_address(factory_addr, token_in_addr, token_out_addr, hash)
+    } else {
+        let factory = Contract::new(factory_addr, parse_abi(V2_FACTORY_ABI), client.provider().clone());
+        factory
+            .method("getPair", (token_in_addr, token_out_addr))
+            .map_err(|e| format!("getPair method: {}", e))?
+            .call()
+            .await
+            .map_err(|e| format!("getPair call: {}", e))?
+    };
 
     if pair == H160::zero() {
         return Err("No pair".to_string());
@@ -250,6 +292,10 @@ async fn get_v3_swap_output(
         .await
         .map_err(|e| format!("liquidity call: {}", e))?;
 
+    if liquidity.is_zero() {
+        return Err("Zero liquidity".to_string());
+    }
+
     let sqrt_price_x96 = slot0.0;
     if sqrt_price_x96.is_zero() {
         return Err("Zero sqrt price".to_string());
@@ -303,7 +349,7 @@ async fn get_dex_swap_output(
 ) -> Result<(f64, f64), String> {
     match dex.dex_type {
         DexType::SushiV2 | DexType::CamelotV2 => {
-            get_v2_swap_output(client, &dex.factory_address, token_in, token_out, amount_in_human, decimals_in, decimals_out).await
+            get_v2_swap_output(client, &dex.factory_address, token_in, token_out, amount_in_human, decimals_in, decimals_out, dex.init_code_hash.as_deref()).await
         }
         DexType::PancakeV3 | DexType::UniswapV3 | DexType::CamelotV4 => {
             let fee = dex.fee_tier.unwrap_or(3000);
@@ -434,6 +480,7 @@ impl Scanner {
         factory_address: &str,
         token_in: &str,
         token_out: &str,
+        init_code_hash: Option<&str>,
     ) -> Result<(f64, f64, f64), String> {
         let factory_addr = H160::from_str(factory_address)
             .map_err(|e| format!("Invalid factory address: {}", e))?;
@@ -442,15 +489,18 @@ impl Scanner {
         let token_out_addr = H160::from_str(token_out)
             .map_err(|e| format!("Invalid token_out address: {}", e))?;
 
-        let factory =
-            Contract::new(factory_addr, parse_abi(V2_FACTORY_ABI), self.client.provider().clone());
-
-        let pair: H160 = factory
-            .method("getPair", (token_in_addr, token_out_addr))
-            .map_err(|e| format!("Failed to get pair: {}", e))?
-            .call()
-            .await
-            .map_err(|e| format!("getPair call failed: {}", e))?;
+        let pair = if let Some(hash) = init_code_hash {
+            compute_v2_pair_address(factory_addr, token_in_addr, token_out_addr, hash)
+        } else {
+            let factory =
+                Contract::new(factory_addr, parse_abi(V2_FACTORY_ABI), self.client.provider().clone());
+            factory
+                .method("getPair", (token_in_addr, token_out_addr))
+                .map_err(|e| format!("Failed to get pair: {}", e))?
+                .call()
+                .await
+                .map_err(|e| format!("getPair call failed: {}", e))?
+        };
 
         if pair == H160::zero() {
             return Err("Pair does not exist".to_string());
@@ -554,6 +604,10 @@ impl Scanner {
             .await
             .map_err(|e| format!("liquidity call failed: {}", e))?;
 
+        if liquidity.is_zero() {
+            return Err("Zero liquidity".to_string());
+        }
+
         let sqrt_price_x96 = slot0.0;
         if sqrt_price_x96.is_zero() {
             return Err("Zero sqrt price".to_string());
@@ -605,7 +659,7 @@ impl Scanner {
     ) -> Result<(f64, f64, f64), String> {
         match dex.dex_type {
             DexType::SushiV2 | DexType::CamelotV2 => {
-                self.get_v2_price(&dex.factory_address, token_in, token_out)
+                self.get_v2_price(&dex.factory_address, token_in, token_out, dex.init_code_hash.as_deref())
                     .await
             }
             DexType::PancakeV3 | DexType::UniswapV3 => {
@@ -871,10 +925,7 @@ impl Scanner {
                                             gross_profit_usd, buy_impact, sell_impact
                                         );
 
-                                        if net_profit > min_profit
-                                            && buy_impact <= max_impact * 100.0
-                                            && sell_impact <= max_impact * 100.0
-                                        {
+                                        if net_profit > min_profit {
                                             let total_impact = buy_impact as u32 + sell_impact as u32;
                                             opps.push(Opportunity {
                                                 token_pair: format!("{}/{}", token_in_sym, token_out_sym),
@@ -919,6 +970,16 @@ impl Scanner {
                 .partial_cmp(&a.net_profit_after_costs)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
+
+        if !all_opportunities.is_empty() {
+            log::info!(
+                "scan_all: {} opportunities, best: {} profit ${:.4} ({})",
+                all_opportunities.len(),
+                all_opportunities[0].token_pair,
+                all_opportunities[0].net_profit_after_costs,
+                all_opportunities[0].route_description,
+            );
+        }
 
         all_opportunities
     }

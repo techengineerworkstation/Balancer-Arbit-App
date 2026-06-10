@@ -910,7 +910,8 @@ async fn main() -> std::io::Result<()> {
             );
             match scanner.scan_all().await {
                 opportunities if !opportunities.is_empty() => {
-                    for opp in opportunities.iter().take(10) {
+                    let top_opps: Vec<_> = opportunities.into_iter().take(15).collect();
+                    for opp in top_opps.iter() {
                         let msg = serde_json::json!({
                             "type": "opportunity",
                             "data": opp
@@ -922,11 +923,12 @@ async fn main() -> std::io::Result<()> {
                     let mut st = state_scanner.status.lock().await;
                     st.last_scan = Some(Utc::now().to_rfc3339());
                     st.total_scans += 1;
-                    st.opportunities_found = opportunities.len() as u32;
+                    st.opportunities_found = top_opps.len() as u32;
                     st.scanning = false;
+                    let best_profit = top_opps.first().map(|o| o.net_profit_after_costs).unwrap_or(0.0);
                     log::info!(
-                        "Scan #{}: {} opportunities found",
-                        st.total_scans, opportunities.len()
+                        "Scan #{}: {} opportunities (best: ${:.4})",
+                        st.total_scans, st.opportunities_found, best_profit
                     );
                 }
                 _ => {
@@ -935,6 +937,7 @@ async fn main() -> std::io::Result<()> {
                     st.total_scans += 1;
                     st.opportunities_found = 0;
                     st.scanning = false;
+                    log::info!("Scan #{}: 0 opportunities", st.total_scans);
                 }
             }
         }

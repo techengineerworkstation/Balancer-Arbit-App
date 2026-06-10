@@ -27,6 +27,8 @@ pub struct DexInfo {
     pub router_address: String,
     pub factory_address: String,
     pub fee_tier: Option<u32>,
+    #[serde(default)]
+    pub init_code_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,13 +69,13 @@ fn default_tokens() -> Vec<TokenInfo> {
     vec![
         TokenInfo {
             symbol: "AAVE".to_string(),
-            address: "0xba5DdD1f9d7F3bE546e97a4C2D7b34c26c435bF9".to_string(),
+            address: "0xba5ddd1f9d7F570dc94a51479a000e3bce967196".to_string(),
             decimals: 18,
             is_base: false,
         },
         TokenInfo {
             symbol: "SUSHI".to_string(),
-            address: "0xd4d42Fca40609F09a632F85185db06415470AD69".to_string(),
+            address: "0xd4d42f0b6def4ce0383636770ef773390d85c61a".to_string(),
             decimals: 18,
             is_base: false,
         },
@@ -85,13 +87,13 @@ fn default_tokens() -> Vec<TokenInfo> {
         },
         TokenInfo {
             symbol: "GNS".to_string(),
-            address: "0x18c11FD286C5EC11c3b683Caa813B93f77155Ac9".to_string(),
+            address: "0x18c11FD286C5EC11c3b683Caa813B77f5163A122".to_string(),
             decimals: 18,
             is_base: false,
         },
         TokenInfo {
             symbol: "BAL".to_string(),
-            address: "0x040d1EdC9461295F50CBDb630f6C3cAb6ab31104".to_string(),
+            address: "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8".to_string(),
             decimals: 18,
             is_base: false,
         },
@@ -139,7 +141,7 @@ fn default_tokens() -> Vec<TokenInfo> {
         },
         TokenInfo {
             symbol: "DPEX".to_string(),
-            address: "0x6C2C2649d712c27D7405D35d9aD6b1C2233cBbae".to_string(),
+            address: "0x6C2C06790b3E3E3c38e12Ee22F8183b37a13EE55".to_string(),
             decimals: 18,
             is_base: false,
         },
@@ -157,7 +159,7 @@ fn default_tokens() -> Vec<TokenInfo> {
         },
         TokenInfo {
             symbol: "RDNT".to_string(),
-            address: "0x3082CC23568eA640225c2467663441610403D183".to_string(),
+            address: "0x0C4681e6C0235179ec3D4F4fc4DF3d14FDD96017".to_string(),
             decimals: 18,
             is_base: false,
         },
@@ -178,6 +180,7 @@ fn default_dexes() -> Vec<DexInfo> {
             router_address: "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506".to_string(),
             factory_address: "0xc35DADB65012eC5796536bD9864eD8773aBc74C4".to_string(),
             fee_tier: None,
+            init_code_hash: Some("0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303".to_string()),
         },
         DexInfo {
             name: "PancakeSwap V3".to_string(),
@@ -185,6 +188,7 @@ fn default_dexes() -> Vec<DexInfo> {
             router_address: "0x13f4EA83D0bd40E0A6C33c274740244243D0FC24".to_string(),
             factory_address: "0x0BFbCF9fa4f9C56B0F40a671Ad40E38852d245B0".to_string(),
             fee_tier: Some(500),
+            init_code_hash: None,
         },
         DexInfo {
             name: "Uniswap V3".to_string(),
@@ -192,6 +196,7 @@ fn default_dexes() -> Vec<DexInfo> {
             router_address: "0xE592427A0AEce92De3Edee1F18E0157C05861564".to_string(),
             factory_address: "0x1F98431c8aD98523631AE4a59f267346ea31F984".to_string(),
             fee_tier: Some(3000),
+            init_code_hash: None,
         },
         DexInfo {
             name: "Curve".to_string(),
@@ -199,6 +204,7 @@ fn default_dexes() -> Vec<DexInfo> {
             router_address: "0x2191718CD32d02B8E60BAdFFeA33E4B5DD9A0A0D".to_string(),
             factory_address: "0x9AF14D26075f142eb3F292D5065EB3faa646167b".to_string(),
             fee_tier: None,
+            init_code_hash: None,
         },
         DexInfo {
             name: "Camelot V2".to_string(),
@@ -206,6 +212,7 @@ fn default_dexes() -> Vec<DexInfo> {
             router_address: "0xc873fEcbd354f5A56E00E710B90EF4201db2448d".to_string(),
             factory_address: "0x6EcCab422D763aC031210895C81787E87B43A652".to_string(),
             fee_tier: None,
+            init_code_hash: Some("0xa856464ae65f7619087bc369daaf7e387dae1e5af69cfa7935850ebf754b04c1".to_string()),
         },
         DexInfo {
             name: "Camelot V4".to_string(),
@@ -213,6 +220,7 @@ fn default_dexes() -> Vec<DexInfo> {
             router_address: "0x4ee15342d6Deb297c3A2aA7CFFd451f788675F53".to_string(),
             factory_address: "0xBefC4b405041c5833f53412fF997ed2f697a2f37".to_string(),
             fee_tier: Some(500),
+            init_code_hash: None,
         },
     ]
 }

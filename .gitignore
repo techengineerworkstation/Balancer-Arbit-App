@@ -23,6 +23,7 @@ Thumbs.db
 # Contracts
 contracts/cache/
 contracts/lib/
+contracts/out/
 
 # WASM
 web-app/pkg/
@@ -36,3 +37,9 @@ src-tauri/target/
 
 # Docker
 docker-compose.override.yml
+
+# Data
+data/
+
+# Lock files (regenerated)
+Cargo.lock
