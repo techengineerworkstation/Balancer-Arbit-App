@@ -758,9 +758,8 @@ async fn sse_handler(
 async fn refresh_fees(state: &AppState) {
     let config = state.config.lock().await.clone();
 
-    if let Ok(provider) = BlockchainClient::new(
+    if let Ok(provider) = BlockchainClient::new_readonly(
         &config.rpc_url,
-        &config.private_key,
         config.chain_id,
     )
     .await
@@ -910,7 +909,11 @@ async fn main() -> std::io::Result<()> {
             );
             match scanner.scan_all().await {
                 opportunities if !opportunities.is_empty() => {
-                    let top_opps: Vec<_> = opportunities.into_iter().take(15).collect();
+                    let min_profit = state_scanner.config.lock().await.min_profit_usd;
+                    let top_opps: Vec<_> = opportunities.into_iter()
+                        .filter(|opp| opp.net_profit_after_costs > min_profit)
+                        .take(15)
+                        .collect();
                     for opp in top_opps.iter() {
                         let msg = serde_json::json!({
                             "type": "opportunity",

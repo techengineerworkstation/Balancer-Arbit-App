@@ -106,8 +106,8 @@ pub const IERC20_ABI: &str = r#"[
 ]"#;
 
 pub const ARBITRUM_GAS_PRICE_GWEI: f64 = 0.02;
-pub const ARBITRUM_L1_DATA_FEE_USD: f64 = 0.05;
-pub const GAS_PER_SWAP: u64 = 500000;
+pub const ARBITRUM_L1_DATA_FEE_USD: f64 = 0.04;
+pub const GAS_PER_SWAP: u64 = 250000;
 
 fn parse_abi(json: &str) -> Abi {
     serde_json::from_str(json).expect("Invalid ABI JSON")
@@ -298,7 +298,7 @@ impl BlockchainClient {
         let trade_size_ratio = amount_in_f64 / reserve_in_f64;
 
         let impact_pct = match dex_type {
-            DexType::SushiV2 | DexType::CamelotV2 => {
+            DexType::SushiV2 | DexType::CamelotV2 | DexType::TraderJoeV2 | DexType::BaseSwapV2 => {
                 let k = reserve_in_f64 * reserve_out_f64;
                 let new_reserve_in = reserve_in_f64 + amount_in_f64;
                 let new_reserve_out = k / new_reserve_in;
@@ -310,7 +310,7 @@ impl BlockchainClient {
                     100.0
                 }
             }
-            DexType::PancakeV3 | DexType::UniswapV3 | DexType::CamelotV4 => {
+            DexType::PancakeV3 | DexType::UniswapV3 | DexType::CamelotV4 | DexType::ZyberV3 | DexType::RamsesV3 | DexType::SushiSwapV3 | DexType::Ambient | DexType::AerodromeV2 | DexType::VelodromeV2 => {
                 if trade_size_ratio > 0.1 {
                     trade_size_ratio * 100.0
                 } else {
@@ -340,7 +340,7 @@ impl BlockchainClient {
         fee_tier: Option<u32>,
     ) -> Result<Vec<u8>, String> {
         match dex_type {
-            DexType::SushiV2 | DexType::CamelotV2 => {
+            DexType::SushiV2 | DexType::CamelotV2 | DexType::TraderJoeV2 | DexType::BaseSwapV2 => {
                 self.encode_v2_swap_calldata(
                     token_in,
                     token_out,
@@ -349,7 +349,7 @@ impl BlockchainClient {
                     dex_router,
                 )
             }
-            DexType::PancakeV3 | DexType::UniswapV3 => {
+            DexType::PancakeV3 | DexType::UniswapV3 | DexType::ZyberV3 | DexType::RamsesV3 | DexType::SushiSwapV3 | DexType::Ambient | DexType::AerodromeV2 | DexType::VelodromeV2 => {
                 let fee = fee_tier.unwrap_or(3000);
                 self.encode_v3_swap_calldata(
                     token_in,

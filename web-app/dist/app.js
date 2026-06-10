@@ -1,31 +1,94 @@
 const API_BASE = '';
-const TOKENS = [
-    { symbol: 'AAVE', address: '0xba5DdA1F7d89f5F627cD34fE8C6E3BFcC02d7939', color: 'token-aave' },
-    { symbol: 'SUSHI', address: '0xd4d42F0d6deb4c0948c28BA34F0C0E0D31093F93', color: 'token-sushi' },
-    { symbol: 'LINK', address: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4', color: 'token-link' },
-    { symbol: 'GNS', address: '0x18c11FD286C5EC11c3b683Caa813B77f5163A122', color: 'token-gns' },
-    { symbol: 'BAL', address: '0x040d1Ce9104c0b6982eD140Fed9d7f00DC8E571B', color: 'token-bal' },
-    { symbol: 'MAGIC', address: '0x539bdE0d7Dbd336b79148AA742883198BBF60342', color: 'token-magic' },
-    { symbol: 'PENDLE', address: '0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8', color: 'token-pendle' },
-    { symbol: 'ETH', address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', color: 'token-eth' },
-    { symbol: 'USDC', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', color: 'token-usdc' },
-    { symbol: 'USDT', address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', color: 'token-usdt' },
-    { symbol: 'WBTC', address: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f', color: 'token-wbtc' },
-    { symbol: 'GRAIL', address: '0x3d9907A95889865BC8D135b20E47E524ff9c768E', color: 'token-grail' },
-    { symbol: 'DPEX', address: '0x52C78242D7B1f820e30b7a0C1cf15516831DE9bc', color: 'token-dpex' },
-    { symbol: 'UNI', address: '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0', color: 'token-uni' },
-    { symbol: 'ARB', address: '0x912CE59144191C1204E64559FE8253a0e49E6548', color: 'token-arb' },
-    { symbol: 'RDNT', address: '0x3082CC23568eA640225c2467653dB90e9250AaA0', color: 'token-rdnt' },
-    { symbol: 'GMX', address: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a', color: 'token-gmx' }
-];
-const DEXES = [
-    { name: 'SushiSwap V2', color: 'dex-sushi', key: 'sushiswap_v2' },
-    { name: 'PancakeSwap V3', color: 'dex-pancake', key: 'pancakeswap_v3' },
-    { name: 'Uniswap V3', color: 'dex-uniswap', key: 'uniswap_v3' },
-    { name: 'Curve', color: 'dex-curve', key: 'curve' },
-    { name: 'Camelot V2', color: 'dex-camelot-v2', key: 'camelot_v2' },
-    { name: 'Camelot V4', color: 'dex-camelot-v4', key: 'camelot_v4' }
-];
+
+// Network configurations
+const NETWORKS = {
+    arbitrum: {
+        name: 'Arbitrum One',
+        chainId: 42161,
+        rpc: 'https://arb1.arbitrum.io/rpc',
+        tokens: [
+            { symbol: 'WETH', address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', color: 'token-eth', decimals: 18 },
+            { symbol: 'USDC', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', color: 'token-usdc', decimals: 6 },
+            { symbol: 'USDT', address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', color: 'token-usdt', decimals: 6 },
+            { symbol: 'WBTC', address: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f', color: 'token-wbtc', decimals: 8 },
+            { symbol: 'ARB', address: '0x912CE59144191C1204E64559FE8253a0e49E6548', color: 'token-arb', decimals: 18 },
+            { symbol: 'GMX', address: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a', color: 'token-gmx', decimals: 18 },
+            { symbol: 'PENDLE', address: '0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8', color: 'token-pendle', decimals: 18 },
+            { symbol: 'LINK', address: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4', color: 'token-link', decimals: 18 },
+            { symbol: 'UNI', address: '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0', color: 'token-uni', decimals: 18 },
+            { symbol: 'AAVE', address: '0xba5ddd1f9d7F570dc94a51479a000e3bce967196', color: 'token-aave', decimals: 18 },
+            { symbol: 'SUSHI', address: '0xd4d42f0b6def4ce0383636770ef773390d85c61a', color: 'token-sushi', decimals: 18 },
+            { symbol: 'GNS', address: '0x18c11FD286C5EC11c3b683Caa813B77f5163A122', color: 'token-gns', decimals: 18 },
+            { symbol: 'BAL', address: '0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8', color: 'token-bal', decimals: 18 },
+            { symbol: 'MAGIC', address: '0x539bdE0d7Dbd336b79148AA742883198BBF60342', color: 'token-magic', decimals: 18 },
+            { symbol: 'GRAIL', address: '0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8', color: 'token-grail', decimals: 18 },
+            { symbol: 'DPEX', address: '0x6C2C06790b3E3E3c38e12Ee22F8183b37a13EE55', color: 'token-dpex', decimals: 18 },
+            { symbol: 'RDNT', address: '0x0C4681e6C0235179ec3D4F4fc4DF3d14FDD96017', color: 'token-rdnt', decimals: 18 }
+        ],
+        dexes: [
+            { name: 'SushiSwap V2', color: 'dex-sushi', key: 'sushiswap_v2' },
+            { name: 'PancakeSwap V3', color: 'dex-pancake', key: 'pancakeswap_v3' },
+            { name: 'Uniswap V3', color: 'dex-uniswap', key: 'uniswap_v3' },
+            { name: 'Camelot V2', color: 'dex-camelot-v2', key: 'camelot_v2' },
+            { name: 'Camelot V4', color: 'dex-camelot-v4', key: 'camelot_v4' },
+            { name: 'Trader Joe V2.1', color: 'dex-trader-joe', key: 'trader_joe_v2' },
+            { name: 'ZyberSwap V3', color: 'dex-zyber', key: 'zyber_v3' },
+            { name: 'Ramses V3', color: 'dex-ramses', key: 'ramses_v3' },
+            { name: 'SushiSwap V3', color: 'dex-sushiswap-v3', key: 'sushiswap_v3' }
+        ]
+    },
+    base: {
+        name: 'Base',
+        chainId: 8453,
+        rpc: 'https://mainnet.base.org',
+        tokens: [
+            { symbol: 'WETH', address: '0x4200000000000000000000000000000000000006', color: 'token-eth', decimals: 18 },
+            { symbol: 'USDC', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', color: 'token-usdc', decimals: 6 },
+            { symbol: 'DAI', address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb', color: 'token-dai', decimals: 18 },
+            { symbol: 'cbETH', address: '0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22', color: 'token-eth', decimals: 18 },
+            { symbol: 'wstETH', address: '0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452', color: 'token-eth', decimals: 18 },
+            { symbol: 'AERO', address: '0x940181a94A35A4569E4529A3CDfB74e38FD98631', color: 'token-aero', decimals: 18 },
+            { symbol: 'VIRTUAL', address: '0x0b3e3c8e9f63630d9576150d059736f6c93592e6', color: 'token-magic', decimals: 18 },
+            { symbol: 'DEGEN', address: '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed', color: 'token-gmx', decimals: 18 },
+            { symbol: 'BRETT', address: '0x532f27101965dd16442E59d40670FaF5eBB142E4', color: 'token-sushi', decimals: 18 },
+            { symbol: 'ANDY', address: '0xf5Cb8DBA2a7BE282b268520F3B0c41C4d5A1d3c3', color: 'token-pendle', decimals: 18 },
+            { symbol: 'MORPHO', address: '0xbaa0FDFc42031DAcE800384dD3C9C4A0C10c6D57', color: 'token-bal', decimals: 18 }
+        ],
+        dexes: [
+            { name: 'Uniswap V3', color: 'dex-uniswap', key: 'uniswap_v3' },
+            { name: 'Aerodrome V2', color: 'dex-aerodrome', key: 'aerodrome_v2' },
+            { name: 'BaseSwap V2', color: 'dex-baseswap', key: 'baseswap_v2' }
+        ]
+    },
+    optimism: {
+        name: 'Optimism',
+        chainId: 10,
+        rpc: 'https://mainnet.optimism.io',
+        tokens: [
+            { symbol: 'WETH', address: '0x4200000000000000000000000000000000000006', color: 'token-eth', decimals: 18 },
+            { symbol: 'USDC', address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', color: 'token-usdc', decimals: 6 },
+            { symbol: 'USDT', address: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58', color: 'token-usdt', decimals: 6 },
+            { symbol: 'DAI', address: '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1', color: 'token-dai', decimals: 18 },
+            { symbol: 'OP', address: '0x4200000000000000000000000000000000000042', color: 'token-op', decimals: 18 },
+            { symbol: 'VELO', address: '0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db', color: 'token-velo', decimals: 18 },
+            { symbol: 'wstETH', address: '0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb', color: 'token-eth', decimals: 18 },
+            { symbol: 'SNX', address: '0x8700dAec35aF8Ff88c16BdF0418774CB3D7599B4', color: 'token-bal', decimals: 18 },
+            { symbol: 'AAVE', address: '0x76FB31fb4af56892A25e32cFC43De717950c9278', color: 'token-aave', decimals: 18 },
+            { symbol: 'LINK', address: '0x350a791Bfc6C61f2c36F2E10bc31c720766892cE', color: 'token-link', decimals: 18 },
+            { symbol: 'UNI', address: '0x6fd9d7AD17242c41f7131d257212c54A0e816691', color: 'token-uni', decimals: 18 },
+            { symbol: 'PERP', address: '0x9e1028F5F1D5eDE59748FFceE5532509976840E0', color: 'token-gmx', decimals: 18 }
+        ],
+        dexes: [
+            { name: 'Uniswap V3', color: 'dex-uniswap', key: 'uniswap_v3' },
+            { name: 'Velodrome V2', color: 'dex-velodrome', key: 'velodrome_v2' },
+            { name: 'SushiSwap V2', color: 'dex-sushi', key: 'sushiswap_v2' }
+        ]
+    }
+};
+
+let currentNetwork = 'arbitrum';
+let TOKENS = NETWORKS.arbitrum.tokens;
+let DEXES = NETWORKS.arbitrum.dexes;
 const QUICK_AMOUNTS = [100, 500, 1000, 5000, 10000, 25000, 50000, 100000];
 
 let authToken = localStorage.getItem('arb_token') || null;
@@ -49,6 +112,30 @@ function formatUSD(val) {
     if (num >= 1e6) return '$' + (num / 1e6).toFixed(2) + 'M';
     if (num >= 1e3) return '$' + (num / 1e3).toFixed(1) + 'K';
     return '$' + num.toFixed(2);
+}
+
+function switchNetwork(network) {
+    if (!NETWORKS[network]) return;
+    currentNetwork = network;
+    TOKENS = NETWORKS[network].tokens;
+    DEXES = NETWORKS[network].dexes;
+    activeTokens = TOKENS.map(t => t.symbol);
+    activeDexes = DEXES.map(d => d.name);
+    
+    // Update UI
+    document.querySelectorAll('.network-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.network === network);
+    });
+    document.getElementById('network-badge').textContent = NETWORKS[network].name;
+    
+    // Re-render badges
+    renderTokenBadges();
+    renderDEXBadges();
+    
+    // Clear old data and reconnect SSE
+    opportunitiesData = [];
+    disconnectSSE();
+    connectSSE();
 }
 
 function formatNumber(val) {
@@ -378,11 +465,13 @@ function updateSSEStatus(connected) {
 
 function handleOpportunity(data) {
     if (!data) return;
+    const profit = Number(data.net_profit_after_costs || data.expected_profit || data.profit || 0);
+    if (profit <= 0) return;
     const opp = {
         pair: data.token_pair || data.pair || '-',
         dex_in: data.dex_from || data.dex_in || '-',
         dex_out: data.dex_to || data.dex_out || '-',
-        profit: Number(data.net_profit_after_costs || data.expected_profit || data.profit || 0),
+        profit: profit,
         amount: Number(data.amount || data.loan_amount || 0),
         timestamp: data.timestamp || new Date().toISOString(),
         route: data.route_description || data.route || '',
@@ -497,10 +586,10 @@ function renderFeeGrid() {
     const grid = document.getElementById('fee-grid');
     if (!grid) return;
     const fees = [
-        { label: 'Gas Price', value: (feeData.gas_price_gwei || feeData.gas_price || 0) + ' Gwei' },
+        { label: 'Gas Price', value: (feeData.gas_price_gwei || feeData.gas_price || 0).toFixed(2) + ' Gwei' },
+        { label: 'Swap Fee', value: formatUSD(feeData.swap_fee_usd || feeData.swap_fee || 0), highlight: true },
         { label: 'L1 Data Fee', value: formatUSD(feeData.l1_data_fee_usd || feeData.l1_data_fee || 0) },
-        { label: 'Swap Fee', value: formatUSD(feeData.swap_fee_usd || feeData.swap_fee || 0) },
-        { label: 'Flash Loan Fee', value: feeData.flash_loan_fee_usd || feeData.flash_loan_fee ? formatUSD(feeData.flash_loan_fee_usd || feeData.flash_loan_fee) : 'Free' },
+        { label: 'Flash Loan Fee', value: feeData.flash_loan_fee_usd || feeData.flash_loan_fee ? formatUSD(feeData.flash_loan_fee_usd || feeData.flash_loan_fee) : 'Free (0%)' },
         { label: 'Deployment Cost', value: formatUSD(feeData.deployment_cost_usd || feeData.deployment_cost || 0) },
         { label: 'Total Per-Trade', value: formatUSD(feeData.total_fee_per_trade_usd || feeData.total_per_trade || 0), highlight: true }
     ];
@@ -515,11 +604,17 @@ function renderFeeGrid() {
 function renderContractFeeGrid() {
     const grid = document.getElementById('contract-fee-grid');
     if (!grid) return;
+    const gasPrice = feeData.gas_price_gwei || 0.02;
+    const deployGas = 2500000;
+    const ethPrice = 2500;
+    const deployCostEth = (gasPrice * deployGas) / 1e9;
+    const deployCostUsd = deployCostEth * ethPrice;
+    
     const items = [
-        { label: 'Estimated Deploy Cost', value: formatUSD(feeData.deployment_cost || feeData.deploy_cost || 0) },
-        { label: 'Gas Price', value: formatNumber(feeData.gas_price || feeData.gas_fee || 0) + ' Gwei' },
+        { label: 'Estimated Deploy Cost', value: formatUSD(deployCostUsd) },
+        { label: 'Gas Price', value: gasPrice.toFixed(2) + ' Gwei' },
         { label: 'Est. Deploy Gas', value: '~2,500,000 units' },
-        { label: 'Arbitrum L2 Fee', value: formatUSD(feeData.l1_data_fee || 0) },
+        { label: 'L2 Fee', value: formatUSD(deployCostUsd * 0.01) },
         { label: 'Network', value: 'Arbitrum One (42161)' },
         { label: 'Flash Loan Pool', value: 'Balancer V3 Vault' }
     ];

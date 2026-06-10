@@ -3,7 +3,7 @@
   "private_key": "",
   "contract_address": "",
   "borrow_amount": 10000.0,
-  "min_profit_usd": -1000.0,
+  "min_profit_usd": 0.005,
   "max_gas_price_gwei": 1.0,
   "scan_interval_ms": 100,
   "auto_trade": false,
@@ -142,15 +142,17 @@
       "name": "PancakeSwap V3",
       "dex_type": "PancakeV3",
       "router_address": "0x13f4EA83D0bd40E0A6C33c274740244243D0FC24",
-      "factory_address": "0x0BFbCF9fa4f9C56B0F40a671Ad40E38852d245B0",
-      "fee_tier": 500
+      "factory_address": "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865",
+      "fee_tier": 500,
+      "quoter_address": "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997"
     },
     {
       "name": "Uniswap V3",
       "dex_type": "UniswapV3",
       "router_address": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
       "factory_address": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
-      "fee_tier": 3000
+      "fee_tier": 3000,
+      "quoter_address": "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
     },
     {
       "name": "Curve",
@@ -172,7 +174,47 @@
       "dex_type": "CamelotV4",
       "router_address": "0x4ee15342d6Deb297c3A2aA7CFFd451f788675F53",
       "factory_address": "0xBefC4b405041c5833f53412fF997ed2f697a2f37",
-      "fee_tier": 500
+      "fee_tier": 500,
+      "quoter_address": "0xFe24b2cDfF01B644995bc248bA8497467d688F7B"
+    },
+    {
+      "name": "Trader Joe V2.1",
+      "dex_type": "TraderJoeV2",
+      "router_address": "0xb4315e873dBcf96Ffd0acd8EA43f689D8c20fB30",
+      "factory_address": "0x8e42f2F4101563bF679975178e880FD87d3eFd4e",
+      "fee_tier": null
+    },
+    {
+      "name": "ZyberSwap V3",
+      "dex_type": "ZyberV3",
+      "router_address": "0xFa58b8024B49836772180f2Df902f231ba712F72",
+      "factory_address": "0x9C2ABD632771b433E5E7507BcaA41cA3b25D8544",
+      "fee_tier": 3000,
+      "quoter_address": "0xAeD211346Fa2E6A5063b4f273BCf7DDbD0368d62"
+    },
+    {
+      "name": "Ramses V3",
+      "dex_type": "RamsesV3",
+      "router_address": "0x76D91074B46fF76E04FE59a90526a40009943fd2",
+      "factory_address": "0x07E60782535752be279929e2DFfDd136Db2e6b45",
+      "fee_tier": 3000,
+      "init_code_hash": "0x892f127ed4b26ca352056c8fb54585a3268f76f97fdd84d5836ef4bda8d8c685",
+      "quoter_address": "0x403Bf94fe505cA0F0b1563C350B57dCeC8303ECd"
+    },
+    {
+      "name": "SushiSwap V3",
+      "dex_type": "SushiSwapV3",
+      "router_address": "0xE3BFF5cD5D85749a3C7164C66bB5a7d67b04a1aC",
+      "factory_address": "0x1af415a1EbA07a4986a52B6f2e7dE7003D82231e",
+      "fee_tier": 3000,
+      "quoter_address": "0x82031783222703a86fe79aa3b32b58ab92510306"
+    },
+    {
+      "name": "Ambient",
+      "dex_type": "Ambient",
+      "router_address": "0x533E164ded63f4c55E83E1f409BDf2BaC5278035",
+      "factory_address": "0xAaAaAAAaA24eEeb8d57D431224f73832bC34f688",
+      "fee_tier": null
     }
   ],
   "base_pairs": [

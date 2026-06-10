@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Balancer V3 Arbitrage Bot</title>
+    <title>Balancer V3 Arbitrage Bot | Arbitrum One</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 </head>
 <body>
     <div id="auth-page" class="auth-page">
@@ -15,21 +16,21 @@
             <div class="auth-header">
                 <div class="auth-logo">BA</div>
                 <h1>Balancer V3 Arbitrage</h1>
-                <p>Arbitrum One</p>
+                <p>Arbitrum One Network</p>
             </div>
             <div class="auth-tabs">
                 <button class="auth-tab active" onclick="showAuthTab('login')">Sign In</button>
                 <button class="auth-tab" onclick="showAuthTab('register')">Register</button>
             </div>
             <form id="login-form" onsubmit="handleLogin(event)">
-                <input type="text" id="login-username" placeholder="Username" required>
-                <input type="password" id="login-password" placeholder="Password" required>
+                <input type="text" id="login-username" placeholder="Username" required autocomplete="username">
+                <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password">
                 <button type="submit" class="btn btn-primary btn-full">Sign In</button>
             </form>
             <form id="register-form" style="display:none" onsubmit="handleRegister(event)">
-                <input type="text" id="reg-username" placeholder="Username" required>
-                <input type="password" id="reg-password" placeholder="Password" required>
-                <input type="password" id="reg-password2" placeholder="Confirm Password" required>
+                <input type="text" id="reg-username" placeholder="Username" required autocomplete="username">
+                <input type="password" id="reg-password" placeholder="Password" required autocomplete="new-password">
+                <input type="password" id="reg-password2" placeholder="Confirm Password" required autocomplete="new-password">
                 <button type="submit" class="btn btn-primary btn-full">Create Account</button>
             </form>
             <div id="auth-error" class="auth-error"></div>
@@ -39,6 +40,11 @@
     <div id="app-page" class="app-page" style="display:none">
         <nav class="navbar">
             <a href="#" class="navbar-logo">BA</a>
+            <div class="network-selector" id="network-selector">
+                <button class="network-btn active" data-network="arbitrum" onclick="switchNetwork('arbitrum')">Arbitrum</button>
+                <button class="network-btn" data-network="base" onclick="switchNetwork('base')">Base</button>
+                <button class="network-btn" data-network="optimism" onclick="switchNetwork('optimism')">Optimism</button>
+            </div>
             <div class="navbar-menu">
                 <a href="#" class="navbar-item active" data-page="dashboard">Dashboard</a>
                 <a href="#" class="navbar-item" data-page="config">Config</a>

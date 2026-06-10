@@ -186,7 +186,34 @@ async fn get_v2_swap_output(
         .map_err(|e| format!("Invalid token_out: {}", e))?;
 
     let pair = if let Some(hash) = init_code_hash {
-        compute_v2_pair_address(factory_addr, token_in_addr, token_out_addr, hash)
+        let computed = compute_v2_pair_address(factory_addr, token_in_addr, token_out_addr, hash);
+        if computed == H160::zero() {
+            return Err("CREATE2 returned zero".to_string());
+        }
+        let pair_contract = Contract::new(computed, parse_abi(V2_PAIR_ABI), client.provider().clone());
+        match pair_contract.method::<_, H160>("token0", ()) {
+            Ok(call) => match call.call().await {
+                Ok(_) => computed,
+                Err(_) => {
+                    let factory = Contract::new(factory_addr, parse_abi(V2_FACTORY_ABI), client.provider().clone());
+                    factory
+                        .method("getPair", (token_in_addr, token_out_addr))
+                        .map_err(|e| format!("getPair method fallback: {}", e))?
+                        .call()
+                        .await
+                        .map_err(|e| format!("getPair call fallback: {}", e))?
+                }
+            },
+            Err(_) => {
+                let factory = Contract::new(factory_addr, parse_abi(V2_FACTORY_ABI), client.provider().clone());
+                factory
+                    .method("getPair", (token_in_addr, token_out_addr))
+                    .map_err(|e| format!("getPair method fallback: {}", e))?
+                    .call()
+                    .await
+                    .map_err(|e| format!("getPair call fallback: {}", e))?
+            }
+        }
     } else {
         let factory = Contract::new(factory_addr, parse_abi(V2_FACTORY_ABI), client.provider().clone());
         factory
@@ -257,17 +284,19 @@ async fn get_v3_swap_output(
     amount_in_human: f64,
     decimals_in: u32,
     decimals_out: u32,
+    _quoter_address: Option<&str>,
 ) -> Result<(f64, f64), String> {
-    let factory_addr = H160::from_str(factory_address)
-        .map_err(|e| format!("Invalid factory: {}", e))?;
     let token_in_addr = H160::from_str(token_in)
         .map_err(|e| format!("Invalid token_in: {}", e))?;
     let token_out_addr = H160::from_str(token_out)
         .map_err(|e| format!("Invalid token_out: {}", e))?;
 
+    let factory_addr = H160::from_str(factory_address)
+        .map_err(|e| format!("Invalid factory: {}", e))?;
+
     let factory = Contract::new(factory_addr, parse_abi(V3_FACTORY_ABI), client.provider().clone());
     let pool: H160 = factory
-        .method("getPool", (token_in_addr, token_out_addr, fee_tier))
+        .method::<_, H160>("getPool", (token_in_addr, token_out_addr, fee_tier))
         .map_err(|e| format!("getPool: {}", e))?
         .call()
         .await
@@ -278,15 +307,9 @@ async fn get_v3_swap_output(
     }
 
     let pool_contract = Contract::new(pool, parse_abi(V3_POOL_ABI), client.provider().clone());
-    let slot0: (U256, i32, u16, u16, u16, u8, bool) = pool_contract
-        .method("slot0", ())
-        .map_err(|e| format!("slot0: {}", e))?
-        .call()
-        .await
-        .map_err(|e| format!("slot0 call: {}", e))?;
 
     let liquidity: U128 = pool_contract
-        .method("liquidity", ())
+        .method::<_, U128>("liquidity", ())
         .map_err(|e| format!("liquidity: {}", e))?
         .call()
         .await
@@ -296,13 +319,20 @@ async fn get_v3_swap_output(
         return Err("Zero liquidity".to_string());
     }
 
+    let slot0: (U256, i32, u16, u16, u16, u8, bool) = pool_contract
+        .method::<_, (U256, i32, u16, u16, u16, u8, bool)>("slot0", ())
+        .map_err(|e| format!("slot0: {}", e))?
+        .call()
+        .await
+        .map_err(|e| format!("slot0 call: {}", e))?;
+
     let sqrt_price_x96 = slot0.0;
     if sqrt_price_x96.is_zero() {
         return Err("Zero sqrt price".to_string());
     }
 
     let pool_token0: H160 = pool_contract
-        .method("token0", ())
+        .method::<_, H160>("token0", ())
         .map_err(|e| format!("pool token0: {}", e))?
         .call()
         .await
@@ -325,15 +355,7 @@ async fn get_v3_swap_output(
     };
 
     let amount_out_human = amount_in_human * spot_price;
-
-    let liq_f64: f64 = liquidity.as_u128() as f64;
-    let amount_in_raw = amount_in_human * 10f64.powi(decimals_in as i32);
-
-    let price_impact = if liq_f64 > 0.0 {
-        (amount_in_raw / liq_f64 * 10000.0).min(10000.0)
-    } else {
-        10000.0
-    };
+    let price_impact = 0.0;
 
     Ok((amount_out_human, price_impact))
 }
@@ -348,12 +370,21 @@ async fn get_dex_swap_output(
     decimals_out: u32,
 ) -> Result<(f64, f64), String> {
     match dex.dex_type {
-        DexType::SushiV2 | DexType::CamelotV2 => {
+        DexType::SushiV2 | DexType::CamelotV2 | DexType::TraderJoeV2 | DexType::BaseSwapV2 => {
             get_v2_swap_output(client, &dex.factory_address, token_in, token_out, amount_in_human, decimals_in, decimals_out, dex.init_code_hash.as_deref()).await
         }
-        DexType::PancakeV3 | DexType::UniswapV3 | DexType::CamelotV4 => {
+        DexType::PancakeV3 | DexType::UniswapV3 | DexType::CamelotV4 | DexType::ZyberV3 | DexType::RamsesV3 | DexType::SushiSwapV3 | DexType::Ambient | DexType::AerodromeV2 | DexType::VelodromeV2 => {
             let fee = dex.fee_tier.unwrap_or(3000);
-            get_v3_swap_output(client, &dex.factory_address, token_in, token_out, fee, amount_in_human, decimals_in, decimals_out).await
+            let fee_tiers_to_try = vec![fee, 500];
+            let mut last_err = String::new();
+            for ft in &fee_tiers_to_try {
+                match get_v3_swap_output(client, &dex.factory_address, token_in, token_out, *ft, amount_in_human, decimals_in, decimals_out, dex.quoter_address.as_deref()).await {
+                    Ok(result) if result.0 > 0.0 => return Ok(result),
+                    Ok(_) => { last_err = "zero output".to_string(); }
+                    Err(e) => { last_err = e; }
+                }
+            }
+            Err(format!("No V3 pool found across {} fee tiers: {}", fee_tiers_to_try.len(), last_err))
         }
         DexType::Curve => {
             Err("Curve scanning not implemented".to_string())
@@ -641,13 +672,13 @@ impl Scanner {
     }
 
     fn is_v2_dex(dex_type: &DexType) -> bool {
-        matches!(dex_type, DexType::SushiV2 | DexType::CamelotV2)
+        matches!(dex_type, DexType::SushiV2 | DexType::CamelotV2 | DexType::TraderJoeV2 | DexType::BaseSwapV2)
     }
 
     fn is_v3_dex(dex_type: &DexType) -> bool {
         matches!(
             dex_type,
-            DexType::PancakeV3 | DexType::UniswapV3 | DexType::CamelotV4
+            DexType::PancakeV3 | DexType::UniswapV3 | DexType::CamelotV4 | DexType::ZyberV3 | DexType::RamsesV3 | DexType::SushiSwapV3 | DexType::Ambient | DexType::AerodromeV2 | DexType::VelodromeV2
         )
     }
 
@@ -658,12 +689,22 @@ impl Scanner {
         token_out: &str,
     ) -> Result<(f64, f64, f64), String> {
         match dex.dex_type {
-            DexType::SushiV2 | DexType::CamelotV2 => {
+            DexType::SushiV2 | DexType::CamelotV2 | DexType::TraderJoeV2 | DexType::BaseSwapV2 => {
                 self.get_v2_price(&dex.factory_address, token_in, token_out, dex.init_code_hash.as_deref())
                     .await
             }
-            DexType::PancakeV3 | DexType::UniswapV3 => {
+            DexType::PancakeV3 | DexType::UniswapV3 | DexType::ZyberV3 | DexType::RamsesV3 | DexType::SushiSwapV3 | DexType::Ambient | DexType::AerodromeV2 | DexType::VelodromeV2 => {
                 let fee = dex.fee_tier.unwrap_or(3000);
+                let result = self
+                    .get_v3_price(&dex.factory_address, token_in, token_out, fee)
+                    .await;
+                match result {
+                    Ok((price, impact, amount_out, _liquidity)) => Ok((price, impact, amount_out)),
+                    Err(e) => Err(e),
+                }
+            }
+            DexType::CamelotV4 => {
+                let fee = dex.fee_tier.unwrap_or(500);
                 let result = self
                     .get_v3_price(&dex.factory_address, token_in, token_out, fee)
                     .await;
@@ -675,16 +716,6 @@ impl Scanner {
             DexType::Curve => {
                 self.get_curve_price(&dex.router_address, token_in, token_out)
                     .await
-            }
-            DexType::CamelotV4 => {
-                let fee = dex.fee_tier.unwrap_or(500);
-                let result = self
-                    .get_v3_price(&dex.factory_address, token_in, token_out, fee)
-                    .await;
-                match result {
-                    Ok((price, impact, amount_out, _liquidity)) => Ok((price, impact, amount_out)),
-                    Err(e) => Err(e),
-                }
             }
         }
     }
@@ -859,6 +890,13 @@ impl Scanner {
             .collect();
 
         let mut futures = Vec::new();
+        let total_pairs = non_base_tokens.len() * base_tokens.len() * self.config.dexes.len().pow(2);
+        log::info!(
+            "scan_all: starting {} token/base pairs × {}² dex combos = {} potential routes",
+            non_base_tokens.len() * base_tokens.len(),
+            self.config.dexes.len(),
+            total_pairs
+        );
 
         for non_base in &non_base_tokens {
             for base in &base_tokens {
@@ -876,8 +914,13 @@ impl Scanner {
                 let non_base_decimals = non_base.decimals;
 
                 futures.push(Box::pin(async move {
-                    let mut opps = Vec::new();
-                    let gas_price = client.get_gas_price().await.unwrap_or(0.02);
+            let mut opps = Vec::new();
+            let mut buy_fails = 0u32;
+            let mut sell_fails = 0u32;
+            let mut zero_out = 0u32;
+            let mut high_impact = 0u32;
+            let mut negative_profit = 0u32;
+            let gas_price = client.get_gas_price().await.unwrap_or(0.02);
                     let swap_cost = estimate_swap_cost_usd(gas_price);
                     let total_cost = swap_cost * 2.0 + 0.05;
 
@@ -899,12 +942,24 @@ impl Scanner {
                                 base_token_amount, base_decimals, non_base_decimals,
                             ).await;
 
+                            match &buy_result {
+                                Err(e) => { buy_fails += 1; if buy_fails <= 3 { log::debug!("buy fail {}/{} on {}: {}", token_in_sym, token_out_sym, dex_from.name, e); } }
+                                Ok((0.0, _)) => { zero_out += 1; }
+                                Ok(_) => {}
+                            }
+
                             if let Ok((amount_out_1, buy_impact)) = buy_result {
                                 if amount_out_1 > 0.0 {
                                     let sell_result = get_dex_swap_output(
                                         &client, dex_to, &token_out_addr, &token_in_addr,
                                         amount_out_1, non_base_decimals, base_decimals,
                                     ).await;
+
+                                    match &sell_result {
+                                        Err(e) => { sell_fails += 1; if sell_fails <= 3 { log::debug!("sell fail {}/{} on {}: {}", token_in_sym, token_out_sym, dex_to.name, e); } }
+                                        Ok((0.0, _)) => { zero_out += 1; }
+                                        Ok(_) => {}
+                                    }
 
                                     if let Ok((amount_out_2, sell_impact)) = sell_result {
                                         let base_usd_price = match base_sym.as_str() {
@@ -917,15 +972,11 @@ impl Scanner {
                                         let gross_profit_usd = amount_out_2_usd - borrow_amount;
                                         let net_profit = gross_profit_usd - total_cost;
 
-                                        log::debug!(
-                                            "{}/{}: borrowed ${} ({:.6} {}) → {} on {} (got {:.4}) → {} on {} (got {:.4} = ${:.2}) | gross: ${:.4} | impact: {:.1}/{:.1}",
-                                            token_in_sym, token_out_sym, borrow_amount, base_token_amount, base_sym,
-                                            token_out_sym, dex_from.name, amount_out_1,
-                                            token_in_sym, dex_to.name, amount_out_2, amount_out_2_usd,
-                                            gross_profit_usd, buy_impact, sell_impact
-                                        );
+                                        if buy_impact >= 10.0 || sell_impact >= 10.0 {
+                                            high_impact += 1;
+                                        }
 
-                                        if net_profit > min_profit {
+                                        if net_profit > min_profit && buy_impact < 10.0 && sell_impact < 10.0 {
                                             let total_impact = buy_impact as u32 + sell_impact as u32;
                                             opps.push(Opportunity {
                                                 token_pair: format!("{}/{}", token_in_sym, token_out_sym),
@@ -952,10 +1003,17 @@ impl Scanner {
                                     }
                                 }
                             }
-                        }
                     }
+                }
 
-                    opps
+                if opps.is_empty() {
+                    log::debug!(
+                        "{}/{}: {} buy_fails, {} sell_fails, {} zero_out, {} high_impact, {} neg_profit",
+                        token_in_sym, token_out_sym, buy_fails, sell_fails, zero_out, high_impact, negative_profit
+                    );
+                }
+
+                opps
                 }));
             }
         }
